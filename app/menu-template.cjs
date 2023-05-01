@@ -75,44 +75,40 @@ async function checkUrlAccessibility() {
   }
 
   // python-shell <=> rowdata2file in python
-const onSaveDocx = () => {
+// const onSaveDocx = () => {
+const onSaveDocx = (ns) => {
     // const pyscript = path.join(__dirname, 'app', 'pyscript.py')
     let pyscript
     if (app.isPackaged) {
-      pyscript = path.join(process.resourcesPath, 'app', 'pyscript.py')
+    //   pyscript = path.join(process.resourcesPath, 'app', 'pyscript.py')
+      pyscript = path.join(process.resourcesPath,'pyscript.py')
     } else {
-      pyscript = path.join(__dirname, 'app', 'pyscript.py')
+    //   pyscript = path.join(__dirname, 'app', 'pyscript.py')
+      pyscript = path.join(__dirname, 'pyscript.py')
     }
     logger.debug('onSaveDocx pyscript.py: %s', pyscript)
-  
-    // pythonPath = path.join(process.resourcesPath, 'app', 'install', 'python.exe')
+
+    // const pythonPath = path.join(process.resourcesPath, 'app', 'install', 'python.exe')
+    const pythonPath = 'python.exe'
     logger.debug('onSaveDocx pythonPath: %s', pythonPath)
-  
+
     // const pyshell = new PythonShell(pyscript, { mode: 'json', pythonPath })
     const pyshell = new PythonShell(pyscript, { mode: 'binary', pythonPath })
-  
+
     const _ = {rowdata: rowData, infilepath: savedFilename, rowdata2file: ns.get('rowdata2file')}
-  
+
     logger.debug(`ns.get('rowdata2file'): ${ns.get('rowdata2file')}`)
-  
+
     pyshell.childProcess.stdin.write(JSON.stringify(_))
     pyshell.childProcess.stdin.end()
-  
+
     let fileloc = savedFilename.replace(/(\.\w+)?$/, '.docx')
     logger.debug(`ns.get('rowdata2file'): ${ns.get('rowdata2file')}`)
-  
+
     if (ns.get('rowdata2file').endsWith('docx_t')) {
       fileloc = fileloc.replace(/\.docx$/, '-t.docx')
     }
-    dialog.showMessageBox(
-      {
-        title: 'Info',
-        message: `Saved file at ${fileloc}`,
-        buttons: ['OK'],
-        type: 'info' // none/info/error/question/warning
-      }
-    )
-  
+
     pyshell.on('message', (result) => {
       logger.debug('result: %s', result)
       dialog.showMessageBox(
@@ -124,7 +120,7 @@ const onSaveDocx = () => {
         }
       )
     })
-  
+
     pyshell.end((err) => {
       if (err) {
           logger.error(err.name + ': ' + err.message)
@@ -136,15 +132,24 @@ const onSaveDocx = () => {
               type: 'error' // none/info/error/question/warning
             }
           )
+      } else {
+        dialog.showMessageBox(
+            {
+              title: 'Info',
+              message: `Saved file to ${fileloc}`,
+              buttons: ['OK'],
+              type: 'info' // none/info/error/question/warning
+            }
+          )
       }
     })
   }
-  
+
 // menu part
 const langList = ['zh', 'en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'pl', 'ru', 'ja']
 
 /**
- * 
+ *
  */
 const menuTemplate = (app, mainWindow, ns) => {
     const submenuTargetLang1 = langList.map(
@@ -159,7 +164,7 @@ const menuTemplate = (app, mainWindow, ns) => {
             }
         })
     )
-    
+
     const submenuTargetLang1b = langList.map(
         label => ({
             label,
@@ -169,7 +174,7 @@ const menuTemplate = (app, mainWindow, ns) => {
         })
     )
     // logger.debug('submenuTargetLang1: %j', submenuTargetLang1)
-    
+
     const submenuTargetLang1a = [
         {
             label: 'en',
@@ -236,7 +241,7 @@ const menuTemplate = (app, mainWindow, ns) => {
             visible: false
         },
     ]
-    
+
   const resu = [  // { role: 'fileMenu' }
   {
     label: 'File',
@@ -247,40 +252,6 @@ const menuTemplate = (app, mainWindow, ns) => {
                 role: 'open',
                 click: async () => { await loadFile(mainWindow, ns) } // ns to pass ns namespace around
             },
-            {
-                label: 'Open File2',
-                visible: false,
-                // accelerator: 'CmdOrCtrl+P',
-                role: 'open',
-                click: async () => {
-                    logger.debug('open file2')
-                    let res = []
-                    try {
-                        res = await loadFile(mainWindow, 2)
-                    } catch (err) {
-                        dialog.showErrorBox('Error', err)
-                    }
-                    if (res.success) {
-                        dialog.showMessageBox(
-                            {
-                                message: 'File 2 successfully loaded.',
-                                title: 'Info',
-                                buttons: ['OK'],
-                                type: 'info' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
-                            }
-                        )
-                    } else {
-                        dialog.showMessageBox(
-                            {
-                                message: 'Loading File 2 canceled.',
-                                title: 'Warning',
-                                buttons: ['OK'],
-                                type: 'warning' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
-                            }
-                        )
-                    }
-                }
-            },
             { type: 'separator' },
             {
                 label: 'DeeplTr',
@@ -288,7 +259,7 @@ const menuTemplate = (app, mainWindow, ns) => {
                 accelerator: 'CmdOrCtrl+T',
                 click: async () => {
                     logger.debug('DeeplTr clicked... do nothing if !col1')
-                    
+
                     logger.debug('ns: %j', ns.store)
 
                     let col1 = ns.get('rowData').map(el => el.text1)
@@ -298,11 +269,11 @@ const menuTemplate = (app, mainWindow, ns) => {
                         logger.debug('col1 undefined, do nothing')
                         return
                     } else logger.debug('\n\n\t=== col1 ', typeof col1, Array.isArray(col1))
-                    
-                    if (typeof col1 === 'undefined') { 
+
+                    if (typeof col1 === 'undefined') {
                         logger.debug('col1 undefined')
                     } else logger.debug('\n\n\t===  col2 ', typeof col2, Array.isArray(col2))
-                    
+
                     // logger.debug('\n\n\t=== lines1 ', typeof lines1, Array.isArray(lines1))
                     // logger.debug('\n\n\t===  lines2 ', typeof lines2, Array.isArray(lines2))
 
@@ -365,7 +336,10 @@ const menuTemplate = (app, mainWindow, ns) => {
                             }
                         )
                         // trtext = e.name + ': ' + e.message
-                        pairsList = [[e.name, e.message]]
+                        // pairsList = [[e.name, e.message]]
+
+                        // give up upon errors
+                        return
                     } finally {
                         progressBar.setCompleted()
                     }
@@ -400,11 +374,11 @@ const menuTemplate = (app, mainWindow, ns) => {
                           let extra_msg = ''
                           if(engineURL.match(/5555/)) {
                                extra_msg = `
-            
+
               You may wish to try mlbee (Menu/Preferences/AlignEngin/forind-mlbee)
               instead, which takes a tad longer tho.`
                           }
-            
+
                           dialog.showMessageBox(
                             {
                               title: 'bummer',
@@ -452,7 +426,8 @@ const menuTemplate = (app, mainWindow, ns) => {
 
                     // talk to pyshell
                     try {
-                        onSaveDocx()
+                        // onSaveDocx()
+                        onSaveDocx(ns)
                     } catch (e) {
                         logger.debug(`${e.name}: ${e.message}`)
                         logger.debug(e)
@@ -702,7 +677,7 @@ const menuTemplate = (app, mainWindow, ns) => {
                 click: async () => {
                     const { shell } = require('electron')
                     // await shell.openExternal('https://electronjs.org')
-                    await shell.openExternal('https://github.com/ffreemt/deepl-tr-electron')
+                    await shell.openExternal('https://github.com/ffreemt/deeplx-tr-electron')
                 }
             },
             {
