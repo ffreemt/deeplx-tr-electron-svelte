@@ -7,8 +7,10 @@ export type ContextBridgeApi = {
 }
 // */
 
-// for preload.cjs
-const { contextBridge, ipcRenderer } = require('electron');
+// for preload.cjs can only require electron
+const { app, contextBridge, ipcRenderer } = require('electron');
+
+console.log(' preload.cjs entry ')
 
 // window.ipcRenderer = ipcRenderer  // book: electron quickly
 // console.log(' window.ipcRenderer: ', window.ipcRenderer)
@@ -42,7 +44,14 @@ contextBridge.exposeInMainWorld('api', {
   rowData: (channel, func) => {
     // ipcRenderer.on('rowData', (event, ...args) => func(...args))
     ipcRenderer.on(channel, (event, ...args) => func(...args))
-  } 
+  },
+  updateRowdata: (channel, data) => {
+    // console.log(' update-rowdata received %o', data)
+    if (['update-rowdata'].includes(channel)) {
+      console.log('preload.cjs update-rowdata received: ', data)
+      ipcRenderer.send(channel, data)
+    }
+  },
 })
 
 /*

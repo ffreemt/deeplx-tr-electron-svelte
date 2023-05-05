@@ -1,5 +1,5 @@
 <svelte:head>
-  <!-- moved to main.js -->
+  <!-- moved to main.cjs -->
 	<!-- <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script> -->
 	<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@29.0.0/styles/ag-grid.css" /> -->
 	<!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@29.0.0/styles/ag-theme-alpine.css" /> -->
@@ -18,8 +18,12 @@
   // console.log = () => {}
   console.log(' console.log... ')
 
-  let rowData = [ { text1: "test1...", text2: "test2..."} ]
-  rowData = [ ]
+  const ipc = window.api.ipcRenderer
+  const api = window.api
+
+  // let rowData = [ { text1: "test1...", text2: "test2..."} ]
+  let rowData = [ { text1: "", text2: ""} ]
+  // rowData = [ ]
   const rowData1 = [
 		{ make: "Toyota", model: "Celica", price: 35000 },
 		{ make: "Ford", model: "Mondeo", price: 32000 },
@@ -43,6 +47,12 @@ const columnDefs = [
         let rowData = []
         gridOptions.api.forEachNode(node => rowData.push(node.data))
         // ipcRenderer.invoke("update-rowdata", rowData) // TODO fix preload
+        
+        console.log('api.updateRowdata rowData: ', rowData)
+        api.updateRowdata('update-rowdata', rowData) // preload.cjs updateRowdata
+        
+        // api.send('toMain', 'send-toMain in App.svelte')
+
     },  // await ipcRenderer.invoke("update-rowdata", rowData)
   },
   {
@@ -58,6 +68,7 @@ const columnDefs = [
         let rowData = []
         gridOptions.api.forEachNode(node => rowData.push(node.data))
         // ipcRenderer.invoke("update-rowdata", rowData)  // TODO fix preload 
+        api.updateRowdata('update-rowdata', rowData) 
     },
   },
   // {
@@ -86,12 +97,10 @@ onMount(() => {
   new Grid(gridContainer, gridOptions);
 })
 
-const ipc = window.api.ipcRenderer
-const api = window.api
-api.rowData('rowData', (rowData) => {
-  // console.log(' channel rowData received: ', JSON.stringify(rowData))
-  gridOptions.api.setRowData(rowData)
-})
+// api.rowData('rowData', (rowData) => {
+//   // console.log(' channel rowData received: ', JSON.stringify(rowData))
+//   gridOptions.api.setRowData(rowData)
+// })
 
 </script>
 
@@ -108,6 +117,48 @@ api.rowData('rowData', (rowData) => {
     </a>
   </div>
   <!-- <h1>Vite + Svelte</h1> -->
+
+<button
+  on:click={() => {
+    // renderer to main ch1: r2m1
+    // window.r2m1.store.set('foo', 'bar11');
+
+    // const { ipcRenderer } = window // this does not work any more 
+
+    // in preload.cjs contextBridge.exposeInMainWorld("ipcRenderer", ipcRenderer)
+    
+    // window.ipcRenderer.send('electron-store-set', 'foo-direct', '100')
+    // const ipc = window.ipcRenderer 
+    const ipc = window.api.ipcRenderer 
+    
+    ipc.send('electron-store-set', 'foo-direct', '101')
+    
+    // api = window.api, 'api' in prelead.js
+    // const api = window.api
+    api.send('toMain', 'send-toMain in App.svelte')
+    api.receive("fromMain", (data) => {
+          console.log('Received process: ', JSON.stringify(data));
+    });
+
+    const resu = ipc.sendSync('ch_storestore')
+    
+    //ipc.on is not a function
+    // ipc.on('ch_storestore-reply', (evt, msg) => {
+    //   console.info(`recived from ch_storestore-reply: ${msg}`)
+    // })
+    // const resu = ipc.send('ch_storestore')
+
+    console.info(' store.store: ', resu)
+
+    console.log('foo ->1 ', window.r2m1.store.get('foo'));
+    console.log('foo-direct -> ', window.r2m1.store.get('foo-direct'));
+    
+    // console.log('window.r2m1.store: ', window.r2m1.store);
+  
+  }}
+>
+  Click Me!
+</button>
 
   <div class="card">
     <Counter />

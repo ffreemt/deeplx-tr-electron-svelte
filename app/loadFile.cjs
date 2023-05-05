@@ -27,26 +27,30 @@ const logger = tracer.console({
 let col1 = []
 let col2 = []
 
-const loadFile = async (win, ns, file = 1) => {
+const Store = require('electron-store')
+const ns = new Store()
+
+// const loadFile = async (win, ns, file = 1) => {
+const loadFile = async (win, file = 1) => {
     const properties = ['openFile']
     if (file === 1) {
       properties.push('multiSelections')
     }
-  
+
     try {
       const { canceled, filePaths } = await dialog.showOpenDialog({
         properties,
         filters: [
           {
             name: 'textfile',
-            extensions: ['txt', 'md']
+            extensions: ['txt', 'md', 'srt']
           }
         ]
       })
-  
+
       // debug('%o, %o', fn + cl().line, filePaths)
-      logger.debug('loaded: %s', filePaths)
-  
+      logger.debug('loaded: ', filePaths)
+
       if (!canceled) {
         try {
           logger.debug('executing file2lines(%s)... ', file)
@@ -68,18 +72,18 @@ const loadFile = async (win, ns, file = 1) => {
         } catch (err) {
           throw new Error(err.message)
         }
-  
+
         rowData = genRowdata({ col1, col2 })
 
         ns.set('rowData', rowData)
-        logger.debug('ns.store ', ns.store)
+        // logger.debug('ns.store ', ns.store)
 
         // logger.debug('win.webContents: ', win.webContents)
         try {
             win.webContents.send('rowData', rowData) // TODO preload.js m2r 'rowData', r2m 'update-rowdata'
             logger.debug(" m2r 'rowData' sent ")
         } catch (e) {
-            logger.debug('error1: %s', e) 
+            logger.debug('error1: %s', e)
         }
 
         return { success: true, rowData }
@@ -93,4 +97,5 @@ const loadFile = async (win, ns, file = 1) => {
     }
   }
 
-exports.loadFile = loadFile
+// exports.loadFile = loadFile
+module.exports = loadFile

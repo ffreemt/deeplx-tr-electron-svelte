@@ -1,11 +1,15 @@
 const { app, dialog } = require('electron')
 const path = require('path')
+const fs = require('fs')
+// const fsAsync = require('fs/promises')
+
 const axios = require('axios')
-const converter = require('json-2-csv')
+// const converter = require('json-2-csv')
+const json2csv = require('json-2-csv').json2csv
 const { PythonShell } = require('python-shell')
 const ProgressBar = require('electron-progressbar')
 
-const loadFile = require('./loadFile.cjs').loadFile
+const loadFile = require('./loadFile.cjs')
 const trText = require('./trText.cjs')
 const genRowdata = require('./genRowdata.cjs')
 
@@ -245,300 +249,365 @@ const menuTemplate = (app, mainWindow, ns) => {
   const resu = [  // { role: 'fileMenu' }
   {
     label: 'File',
-        submenu: [
-            {
-                label: 'Open File',
-                accelerator: 'CmdOrCtrl+O',
-                role: 'open',
-                click: async () => { await loadFile(mainWindow, ns) } // ns to pass ns namespace around
-            },
-            { type: 'separator' },
-            {
-                label: 'DeeplTr',
-                // accelerator: 'CmdOrCtrl+L',
-                accelerator: 'CmdOrCtrl+T',
-                click: async () => {
-                    logger.debug('DeeplTr clicked... do nothing if !col1')
+    submenu: [
+        {
+            label: 'Open File',
+            accelerator: 'CmdOrCtrl+O',
+            role: 'open',
+            // click: async () => { await loadFile(mainWindow, ns) } // ns to pass ns namespace around
+            click: async () => { await loadFile(mainWindow) } // ns to pass ns namespace around
+        },
+        { type: 'separator' },
+        {
+            label: 'DeeplTr',
+            // accelerator: 'CmdOrCtrl+L',
+            accelerator: 'CmdOrCtrl+T',
+            click: async () => {
+                logger.debug('DeeplTr clicked... do nothing if !col1')
 
-                    logger.debug('ns: %j', ns.store)
+                logger.debug('ns: %j', ns.store)
 
-                    let col1 = ns.get('rowData').map(el => el.text1)
-                    let col2 = ns.get('rowData').map(el => el.text2)
+                let col1 = ns.get('rowData').map(el => el.text1)
+                let col2 = ns.get('rowData').map(el => el.text2)
 
-                    if (typeof col1 === 'undefined') {
-                        logger.debug('col1 undefined, do nothing')
-                        return
-                    } else logger.debug('\n\n\t=== col1 ', typeof col1, Array.isArray(col1))
+                if (typeof col1 === 'undefined') {
+                    logger.debug('col1 undefined, do nothing')
+                    return
+                } else logger.debug('\n\n\t=== col1 ', typeof col1, Array.isArray(col1))
 
-                    if (typeof col1 === 'undefined') {
-                        logger.debug('col1 undefined')
-                    } else logger.debug('\n\n\t===  col2 ', typeof col2, Array.isArray(col2))
+                if (typeof col1 === 'undefined') {
+                    logger.debug('col1 undefined')
+                } else logger.debug('\n\n\t===  col2 ', typeof col2, Array.isArray(col2))
 
-                    // logger.debug('\n\n\t=== lines1 ', typeof lines1, Array.isArray(lines1))
-                    // logger.debug('\n\n\t===  lines2 ', typeof lines2, Array.isArray(lines2))
+                // logger.debug('\n\n\t=== lines1 ', typeof lines1, Array.isArray(lines1))
+                // logger.debug('\n\n\t===  lines2 ', typeof lines2, Array.isArray(lines2))
 
-                    const progressBar = new ProgressBar({
-                        text: 'diggin...',
-                        detail: 'Fetching deepltr result... make sure the net is up and you can access deepl.com '
+                const progressBar = new ProgressBar({
+                    text: 'diggin...',
+                    detail: 'Fetching deepltr result... make sure the net is up and you can access deepl.com '
+                })
+                progressBar
+                    .on('completed', function () {
+                        console.info('completed...')
+                        progressBar.detail = 'Task completed. Exiting...'
                     })
-                    progressBar
-                        .on('completed', function () {
-                            console.info('completed...')
-                            progressBar.detail = 'Task completed. Exiting...'
-                        })
-                        .on('aborted', function () {
-                            console.info('aborted...')
-                        })
+                    .on('aborted', function () {
+                        console.info('aborted...')
+                    })
 
-                    // check server/deepl status
-                    try {
-                        // await checkPort()
-                        // await checkDeepl()
-                        await checkUrlAccessibility()
-                        logger.debug("server ready") // everything OK
-                    } catch (e) {
-                        logger.error(`${e.name}: ${e.message}`)
-                        dialog.showMessageBox(
-                            {
-                                message: `${e.name}: ${e.message}
-        Looks like deepl server is not accessible for some reason. `,
-                                title: 'Error',
-                                buttons: ['OK'],
-                                type: 'error' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
-                            }
-                        )
-                        return
-                    } finally {
-                        // progressBar.setCompleted()
-                    }
-
-                    // let rowData  // moved to top as global
-                    let pairsList
-                    try {
-                        logger.debug('\n\t ns.store: ', ns.store)
-                        logger.debug(' ns.get targetLang1: ', ns.get('targetLang1'))
-
-                        // note to self: must fill arguments sequentially!
-                        // pairsList = await trText(col1.join('\n'), toLang=ns.get('targetLang1'))
-                        pairsList = await trText(col1.join('\n'), null, ns.get('targetLang1'))
-
-                        // logger.debug('trtext: %s', trtext)
-                        logger.debug('pairsList.slice(0, 5): %j', pairsList.slice(0, 5))
-                    } catch (e) {
-                        logger.error(e)
-                        rowData = { text1: e.name, text2: e.message }
-                        dialog.showMessageBox(
-                            {
-                                message: `${e.name}: ${e.message}`,
-                                title: 'Warning',
-                                buttons: ['OK'],
-                                type: 'warning' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
-                            }
-                        )
-                        // trtext = e.name + ': ' + e.message
-                        // pairsList = [[e.name, e.message]]
-
-                        // give up upon errors
-                        return
-                    } finally {
-                        progressBar.setCompleted()
-                    }
-
-                    // fix rowData
-                    // col2 = trtext.trim().split(/[\r\n]+/)
-
-                    // logger.debug('col1: %j', col1.slice(0,5))
-                    // logger.debug('col2: %j', col2.slice(0,5))
-                    // rowData = genRowdata({ col1, col2 })
-
-                    rowData = genRowdata({ col1: pairsList, isRow: true })
-                    // logger.debug(' rowData from col1 col2: %j', rowData)
-                    logger.debug(' rowData from pairsList: %j', pairsList)
-
-                    if (!rowData) {
-                        logger.error(' rowData is undefined ')
-                    } else {
-                        logger.debug(' send to via rowData channel ')
-                        // rowData.map((el, idx) => {
-                        rowData.forEach((el, idx) => {
-                            if (idx < 5) {
-                                logger.debug(' send via rowData channel ')
-                            }
-                        })
-
-                        // if (metric.some( el => !!el )) {
-                        mainWindow.webContents.send('rowData', rowData)
-
-                        /*
-                        if (ratio < 0.1) {
-                          let extra_msg = ''
-                          if(engineURL.match(/5555/)) {
-                               extra_msg = `
-
-              You may wish to try mlbee (Menu/Preferences/AlignEngin/forind-mlbee)
-              instead, which takes a tad longer tho.`
-                          }
-
-                          dialog.showMessageBox(
-                            {
-                              title: 'bummer',
-                              message: `
-              No meaningful result returned, either because
-              there is a bug in the app, or the server is down,
-              or there is an issue with your
-              data/parameters selected. If possible, feedback to the dev,
-              best with some descriptions and/or your data if feasible.${extra_msg}
-                              `,
-                              buttons: ['OK'],
-                              type: 'warning' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
-                            }
-                          )
+                // check server/deepl status
+                try {
+                    // await checkPort()
+                    // await checkDeepl()
+                    await checkUrlAccessibility()
+                    logger.debug("server ready") // everything OK
+                } catch (e) {
+                    logger.error(`${e.name}: ${e.message}`)
+                    dialog.showMessageBox(
+                        {
+                            message: `${e.name}: ${e.message}
+    Looks like deepl server is not accessible for some reason. `,
+                            title: 'Error',
+                            buttons: ['OK'],
+                            type: 'error' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
                         }
-                        // */
-
-                    }
+                    )
+                    return
+                } finally {
+                    // progressBar.setCompleted()
                 }
-            },
-            {
-                label: 'Save(docx)',
-                accelerator: 'CmdOrCtrl+S',
-                click: async () => {
-                    logger.debug('SaveDocx clicked...')
 
-                    if (!rowData) { // undefined or empty
-                        dialog.showMessageBox(
-                            {
-                                message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
-                                title: 'Warning',
-                                buttons: ['OK'],
-                                type: 'warning'
-                            }
-                        )
-                        return null
-                    }
-                    // proceed to save rowData
-                    // let savedFilename = `${path.parse(filename1).name}-${path.parse(filename2).name}.csv`
-                    savedFilename = `${path.parse(filename1).name}-tr.csv`
+                // let rowData  // moved to top as global
+                let pairsList
+                try {
+                    logger.debug('\n\t ns.store: ', ns.store)
+                    logger.debug(' ns.get targetLang1: ', ns.get('targetLang1'))
 
-                    savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
+                    // note to self: must fill arguments sequentially!
+                    // pairsList = await trText(col1.join('\n'), toLang=ns.get('targetLang1'))
+                    pairsList = await trText(col1.join('\n'), null, ns.get('targetLang1'))
 
-                    logger.debug(' onSaveDocx savedFilename: ', savedFilename)
+                    // logger.debug('trtext: %s', trtext)
+                    logger.debug('pairsList.slice(0, 5): %j', pairsList.slice(0, 5))
+                } catch (e) {
+                    logger.error(e)
+                    rowData = { text1: e.name, text2: e.message }
+                    dialog.showMessageBox(
+                        {
+                            message: `${e.name}: ${e.message}`,
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning' // none/info/error/question/warning https://newsn.net/say/electron-dialog-messagebox.html
+                        }
+                    )
+                    // trtext = e.name + ': ' + e.message
+                    // pairsList = [[e.name, e.message]]
 
-                    // talk to pyshell
-                    try {
-                        // onSaveDocx()
-                        onSaveDocx(ns)
-                    } catch (e) {
-                        logger.debug(`${e.name}: ${e.message}`)
-                        logger.debug(e)
-                        dialog.showMessageBox(
-                            {
-                                // message: `Unable to save...${e.name}: ${e.message}`,
-                                message: `Unable to save...${e}`,
-                                title: 'Warning',
-                                buttons: ['OK'],
-                                type: 'warning'
-                            }
-                        )
-                        return null
-                    }
+                    // give up upon errors
+                    return
+                } finally {
+                    progressBar.setCompleted()
                 }
-            },
-            {
-                label: 'Save(csv)',
-                // accelerator: 'CmdOrCtrl+S',
-                click: async () => {
-                    logger.debug('SaveCsv clicked...')
 
-                    if (!rowData) { // undefined or empty
-                        dialog.showMessageBox(
-                            {
-                                message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
-                                title: 'Warning',
-                                buttons: ['OK'],
-                                type: 'warning'
-                            }
-                        )
-                        return null
-                    }
-                    // proceed to save rowData
-                    // let savedFilename = `${path.parse(filename1).name}-${path.parse(filename2).name}.csv`
-                    savedFilename = `${path.parse(filename1).name}-tr.csv`
+                // fix rowData
+                // col2 = trtext.trim().split(/[\r\n]+/)
 
-                    savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
+                // logger.debug('col1: %j', col1.slice(0,5))
+                // logger.debug('col2: %j', col2.slice(0,5))
+                // rowData = genRowdata({ col1, col2 })
 
-                    logger.debug('SaveCsv savedFilename: ', savedFilename)
+                rowData = genRowdata({ col1: pairsList, isRow: true })
+                // logger.debug(' rowData from col1 col2: %j', rowData)
+                logger.debug(' rowData from pairsList: %j', pairsList)
 
-                    converter.json2csv(rowData, (err, csv) => {
-                        if (err) {
-                            dialog.showMessageBox(
-                                {
-                                    message: 'Unable to convert to csv.',
-                                    title: 'Warning',
-                                    buttons: ['OK'],
-                                    type: 'warning'
-                                }
-                            )
-                            return null
-                            // throw err
-                        }
-
-                        try {
-                            logger.debug('csv: ', csv.slice(0, 200))
-                        } catch (e) {
-                            logger.debug(e.message)
-                        }
-
-                        try {
-                            // fs.writeFileSync(savedFilename, csv, 'GB2312')
-                            // fs.writeFileSync(savedFilename, Buffer.from('EFBBBF', 'hex'))
-                            // fs.writeFileSync(savedFilename, csv)
-                            // fs.writeFile(`${outputPath}`, `\ufeff${string}`, 'utf8')
-                            fs.writeFileSync(savedFilename, `\ufeff${csv}`, 'utf8')
-
-                            // const arr = iconv.encode (str, 'GB2312')
-                            // fs.writeFileSync(savedFilename, arr, 'hex')
-                            dialog.showMessageBox(
-                                {
-                                    message: `${path.resolve(savedFilename)} saved`,
-                                    title: 'Info',
-                                    buttons: ['OK'],
-                                    type: 'info'
-                                }
-                            )
-                        } catch (e) {
-                            logger.error(e)
-                            dialog.showMessageBox(
-                                {
-                                    message: 'Unable to save, ' + e.message,
-                                    title: 'Warning',
-                                    buttons: ['OK'],
-                                    type: 'warning'
-                                }
-                            )
+                if (!rowData) {
+                    logger.error(' rowData is undefined ')
+                } else {
+                    logger.debug(' send to via rowData channel ')
+                    // rowData.map((el, idx) => {
+                    rowData.forEach((el, idx) => {
+                        if (idx < 5) {
+                            logger.debug(' send via rowData channel ')
                         }
                     })
+
+                    mainWindow.webContents.send('rowData', rowData)
+                    //
                 }
-            },
-            {
-                label: app.getName(),
-                visible: false,
-                submenu: [
-                    {
-                        label: 'Preferences',
-                        click: _ => {
-                            const prefWindow = new BrowserWindow({ width: 500, height: 300, resizable: false })
-                            // prefWindow.loadURL(htmlPath)
-                            prefWindow.loadFile(path.join(__dirname, 'preferences.html'))
-                            prefWindow.show()
-                            // on window closed
+            }
+        },
+        { type: 'separator' },
+        {
+            label: 'Save(docx)',
+            accelerator: 'CmdOrCtrl+S',
+            click: async () => {
+                logger.debug('SaveDocx clicked...')
+
+                logger.debug(' ns.get(rowData) ', ns.get('rowData'))
+                logger.debug('SaveCsv clicked...')
+
+                if (typeof rowData === 'undefined' || !rowData) { // undefined or empty
+                    dialog.showMessageBox(
+                        {
+                            message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
                         }
+                    )
+                    return null
+                }
+                // proceed to save rowData
+                // let savedFilename = `${path.parse(filename1).name}-${path.parse(filename2).name}.csv`
+                savedFilename = `${path.parse(filename1).name}-tr.csv`
+
+                savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
+
+                logger.debug(' onSaveDocx savedFilename: ', savedFilename)
+
+                // talk to pyshell
+                try {
+                    // onSaveDocx()
+                    onSaveDocx(ns)
+                } catch (e) {
+                    logger.debug(`${e.name}: ${e.message}`)
+                    logger.debug(e)
+                    dialog.showMessageBox(
+                        {
+                            // message: `Unable to save...${e.name}: ${e.message}`,
+                            message: `Unable to save...${e}`,
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
+                        }
+                    )
+                    return null
+                }
+            }
+        },
+        {
+            label: 'Save(csv)',
+            click: async () => {
+                logger.debug('SaveCsv clicked...')
+
+                if (typeof toLang === 'undefined') {
+                    dialog.showMessageBox(
+                        {
+                            message: 'Empty data...Try to load a file or paste some text to a cell in text1 first.',
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
+                        }
+                    )
+                    return null
+                }
+
+                let rowData = ns.get('rowData')
+                if (!rowData) { // undefined or empty
+                    logger.debug(' if (!rowData) ')
+                    dialog.showMessageBox(
+                        {
+                            message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
+                        }
+                    )
+                    return null
+                }
+                // proceed to save rowData
+                let filename1 = ns.get('filename1')
+                let savedFilename = `${path.parse(filename1).name}-tr.csv`
+
+                savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
+
+                logger.debug('SaveCsv savedFilename: ', savedFilename)
+                logger.debug("rowData'): ", rowData)
+                logger.debug("ns.get('rowData'): ", ns.get('rowData'))
+
+                let csv = null
+                try {
+                    csv = await json2csv(rowData)
+                } catch (err) {
+                    logger.debug(err.message)
+                    dialog.showMessageBox(
+                        {
+                            message: 'Unable to convert to csv.',
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
+                        }
+                    )
+                    return null
+                    // throw err
+                }
+
+                try {
+                    // fs.writeFileSync(savedFilename, csv, 'GB2312')
+                    // fs.writeFileSync(savedFilename, Buffer.from('EFBBBF', 'hex'))
+                    // fs.writeFileSync(savedFilename, csv)
+                    // fs.writeFile(`${outputPath}`, `\ufeff${string}`, 'utf8')
+                    fs.writeFileSync(savedFilename, `\ufeff${csv}`, 'utf8')
+
+                    // const arr = iconv.encode (str, 'GB2312')
+                    // fs.writeFileSync(savedFilename, arr, 'hex')
+                    dialog.showMessageBox(
+                        {
+                            message: `${path.resolve(savedFilename)} saved`,
+                            title: 'Info',
+                            buttons: ['OK'],
+                            type: 'info'
+                        }
+                    )
+                } catch (e) {
+                    logger.error(e)
+                    dialog.showMessageBox(
+                        {
+                            message: 'Unable to save, ' + e.message,
+                            title: 'Warning',
+                            buttons: ['OK'],
+                            type: 'warning'
+                        }
+                    )
+                }
+              }
+        },
+      {
+        label: 'Save(trtxt)',
+        click: async () => {
+          logger.debug('SaveTrxt clicked...')
+
+          if (typeof rowData === 'undefined') {
+              dialog.showMessageBox(
+                  {
+                      message: 'Empty data...Try to load a file or paste some text to a cell in text1 first.',
+                      title: 'Warning',
+                      buttons: ['OK'],
+                      type: 'warning'
+                  }
+              )
+              return null
+          }
+
+          if (!rowData) { // undefined or empty
+            dialog.showMessageBox(
+              {
+                message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
+                title: 'Warning',
+                buttons: ['OK'],
+                type: 'warning'
+              }
+            )
+            return null
+          }
+          savedFilename = `${path.parse(filename1).name}-tr.txt`
+
+          savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
+
+          logger.debug('SaveTrtxt savedFilename: ', savedFilename)
+
+          // convert text2 of rowData to trtxt
+          let trtxt
+          try {
+            trtxt = rowData.map( _ => _.text2 ).join('\n') }
+          catch (e) {
+            trtxt = `${e.name}: ${e.message}`
+            logger.error(e)
+            dialog.showMessageBox(
+              {
+                message: `${e.name}: ${e.message}`,
+                title: 'Error',
+                buttons: ['OK'],
+                type: 'error'
+              }
+            )
+          }
+          // save trtxt
+          try {
+            fs.writeFileSync(savedFilename, `\ufeff${trtxt}`, 'utf8')
+
+            // const arr = iconv.encode (str, 'GB2312')
+            // fs.writeFileSync(savedFilename, arr, 'hex')
+            dialog.showMessageBox(
+              {
+                message: `${path.resolve(savedFilename)} saved`,
+                title: 'Info',
+                buttons: ['OK'],
+                type: 'info'
+              }
+            )
+          } catch (e) {
+            logger.error(e)
+            dialog.showMessageBox(
+              {
+                message: 'Unable to save, ' + e.message,
+                title: 'Warning',
+                buttons: ['OK'],
+                type: 'warning'
+              }
+            )
+          }
+          }
+      },
+        {
+            label: app.getName(),
+            visible: false,
+            submenu: [
+                {
+                    label: 'Preferences',
+                    click: _ => {
+                        const prefWindow = new BrowserWindow({ width: 500, height: 300, resizable: false })
+                        // prefWindow.loadURL(htmlPath)
+                        prefWindow.loadFile(path.join(__dirname, 'preferences.html'))
+                        prefWindow.show()
+                        // on window closed
                     }
-                ]
-            },
-            { type: 'separator' },
-            isMac ? { role: 'close' } : { role: 'quit' }
-        ]
+                }
+            ]
+        },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' }
+    ]
 },
 // { role: 'editMenu' }
 {
@@ -677,7 +746,7 @@ const menuTemplate = (app, mainWindow, ns) => {
                 click: async () => {
                     const { shell } = require('electron')
                     // await shell.openExternal('https://electronjs.org')
-                    await shell.openExternal('https://github.com/ffreemt/deeplx-tr-electron')
+                    await shell.openExternal('https://github.com/ffreemt/deeplx-tr-electron-svelte')
                 }
             },
             {
@@ -696,4 +765,5 @@ const menuTemplate = (app, mainWindow, ns) => {
 return resu
 }
 
-exports.menuTemplate = menuTemplate
+module.exports = menuTemplate
+// exports.menuTemplate = menuTemplate

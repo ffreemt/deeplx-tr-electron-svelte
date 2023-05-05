@@ -7,6 +7,10 @@ const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
 // import Store from 'electron-store'; // https://electron-react-boilerplate.js.org/docs/electron-store
 const Store = require('electron-store');
 
+const debug = require('electron-debug')
+
+// debug()
+
 // const isDev = process.env.IS_DEV === 'true';
 // const isDev = app.isPackaged ? false : require('electron-is-dev')
 let isDev;
@@ -39,25 +43,20 @@ logger.debug(" entry ")
 logger.info(" entry ")
 
 // devtools wont show if uncommented?
-// You can force development mode by setting the ELECTRON_IS_DEV environment variable to 1 
+// You can force development mode by setting the ELECTRON_IS_DEV environment variable to 1
 // (does not seem to always work)
 // logger.info('ELECTRON_IS_DEV, require("electron-is-dev")', process.env.ELECTRON_IS_DEV, require('electron-is-dev'))
 
 logger.info('app\index.js process.env.IS_DEV ', process.env.IS_DEV)
 logger.info('app\index.js isDev ', isDev)
 
-const fs = require('fs')
-const fsAsync = require('fs/promises')
-// const path = require('path')
 // const { spawn } = require('node:child_process')
 
 const genRowdata = require('./genRowdata.cjs')
 
 const store = new Store();
-store.set('foo2', 'f10')
-store.set('foo1', 'f10')
 
-// ********* default and save-resore 
+// ********* default and save-resore
 const langList = ['zh', 'en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'pl', 'ru', 'ja']
 // const targetLang1 = Object.fromEntries(langList.map((x) => [x, false]))
 // targetLang1.zh = true  // default to zh
@@ -74,6 +73,8 @@ const defaultPref = {
 store.set('rowdata2file', store.get('rowdata2file') || defaultPref.rowdata2file)
 store.set('targetLang1', store.get('targetLang1') || defaultPref.targetLang1)
 
+store.delete('rowData')
+store.delete('foo-direct')
 logger.debug('store.store: ', store.store)
 // *********
 
@@ -88,8 +89,8 @@ if (process.env.NODE_ENV === 'development') {
 }
 // */
 
-console.log('store.store: ', store.store)
-logger.debug('store.store: %j', store.store)
+// console.log('store.store: ', store.store)
+// logger.debug('store.store: %j', store.store)
 
 // IPC listener
 // ipcMain.on('store-var', async (event, val) => {
@@ -109,6 +110,14 @@ ipcMain.on('ch_storestore', (event) => {
   event.returnValue = store.store; // for sendSync
   // event.sender.send('ch_storestore-reply', 'str store.store' )
 });
+
+ipcMain.on('update-rowdata', (event, data) => {
+  logger.debug('updated rowdata: %j', data)
+  // prepare for further saving
+  // initially in loadFile.cjs ns.set('rowData', rowData)
+  store.set('rowData', data)
+  logger.debug('store.store: ', store.store)
+})
 
 // *********/
 let mainWindow
@@ -134,7 +143,7 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
-function createWindow0() {
+async function createWindow0() {
   // Create the browser window.
   // const mainWindow = new BrowserWindow({
   mainWindow = new BrowserWindow({
@@ -152,16 +161,23 @@ function createWindow0() {
 
   // Open the DevTools.
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-    require('electron-debug')()
+    await mainWindow.loadURL('http://localhost:5173');
+    try {
+      mainWindow.webContents.openDevTools({ mode: 'detach' })
+    } catch (e) {
+      logger.error(e)
+      throw e
+    }
+    // mainWindow.webContents.openDevTools();
+    // require('electron-debug')()
+    // debug()
   } else {
     // mainWindow.removeMenu();
-    mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
+    await mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
   }
 }
 
-const createWindow = () => {
+const createWindow = async () => {
   // Use saved window size in user-preferences
   const { x, y, width, height } = store.get('windowBounds') || defaultPref.windowBounds
 
@@ -193,9 +209,10 @@ const createWindow = () => {
 
   // Open the DevTools.
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-    logger.debug(' mainWindow.loadURL ')
+    await mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    debug()
+    logger.debug(' isDev mainWindow.loadURL ')
   } else {
     // mainWindow.removeMenu();
     mainWindow.loadFile(path.join(__dirname, 'build', 'index.html'));
@@ -215,9 +232,17 @@ console.log(path.join(path.dirname(__dirname), 'src', 'app'))
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  createWindow();
-  const menuTemplate = require('./menu-template.cjs').menuTemplate
+
+!async function () {
+  // app.whenReady().then(async () => {
+  await app.whenReady()
+
+  // await createWindow0();
+  await createWindow();
+
+  // const menuTemplate = require('./menu-template.cjs').menuTemplate // exports.menuTemplate = menuTemplate in menu-template.cjs
+  const menuTemplate = require('./menu-template.cjs') // module.exports = menuTemplate
+
   let menuTempl = menuTemplate(app, mainWindow, store)
   // logger.debug(' menuTempl: %j', menuTempl)
 
@@ -235,12 +260,14 @@ app.whenReady().then(() => {
     const package_json = require('../package.json')
     mainWindow.setTitle(`${package_json.name} ${package_json.version}`)
 
-    // now show it 
+    // now show it
     // logger.debug(' turn the window on') // does not seem to work
     // mainWindow.webContents.show = true
   })
 
-});
+}()
+
+// });
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
