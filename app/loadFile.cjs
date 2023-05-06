@@ -58,16 +58,19 @@ const loadFile = async (win, file = 1) => {
             for (const [idx, filePath] of filePaths.slice(0, 2).entries()) {
               if (idx) {
                 col2 = file2lines(filePath)
-                filename2 = filePath
+                // filename2 = filePath
+                ns.set('filename2', filePath)
               } else {
                 col1 = file2lines(filePath)
-                filename1 = filePath
+                // filename1 = filePath
+                ns.set('filename1', filePath)
               }
             }
           } else {
             const [filePath] = filePaths
             col2 = file2lines(filePath)
-            filename2 = filePath
+            // filename2 = filePath
+            ns.set('filename2', filePath)
           }
         } catch (err) {
           throw new Error(err.message)

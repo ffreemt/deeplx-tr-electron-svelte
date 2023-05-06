@@ -55,6 +55,8 @@ logger.info('app\index.js isDev ', isDev)
 const genRowdata = require('./genRowdata.cjs')
 
 const store = new Store();
+// store is ns (namespace for historical reason) in loadFile.cjs and
+// onSaveDocx/ menuTemplate in menu-template.cjs
 
 // ********* default and save-resore
 const langList = ['zh', 'en', 'de', 'fr', 'es', 'pt', 'it', 'nl', 'pl', 'ru', 'ja']
@@ -65,6 +67,8 @@ const defaultPref = {
   windowBounds: { x: 10, y: 10,  width: 800, height: 600 },
   targetLang1: 'zh', // actually state true/false
   rowdata2file: 'rowdata2docx',
+  filename1: 'unnamed',
+  filename2: 'unnamed2',
 }
 
 // hard reset ns
@@ -73,8 +77,10 @@ const defaultPref = {
 store.set('rowdata2file', store.get('rowdata2file') || defaultPref.rowdata2file)
 store.set('targetLang1', store.get('targetLang1') || defaultPref.targetLang1)
 
-store.delete('rowData')
-store.delete('foo-direct')
+// store.delete('rowData')
+store.set('rowData', [{text1: '', text2: ''}])
+store.set('filename1', defaultPref.filename1) // reset filename1
+
 logger.debug('store.store: ', store.store)
 // *********
 

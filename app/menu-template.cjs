@@ -94,11 +94,13 @@ const onSaveDocx = (ns) => {
 
     // const pythonPath = path.join(process.resourcesPath, 'app', 'install', 'python.exe')
     const pythonPath = 'python.exe'
+
     logger.debug('onSaveDocx pythonPath: %s', pythonPath)
 
     // const pyshell = new PythonShell(pyscript, { mode: 'json', pythonPath })
     const pyshell = new PythonShell(pyscript, { mode: 'binary', pythonPath })
 
+    let rowData = ns.get('rowData')
     const _ = {rowdata: rowData, infilepath: savedFilename, rowdata2file: ns.get('rowdata2file')}
 
     logger.debug(`ns.get('rowdata2file'): ${ns.get('rowdata2file')}`)
@@ -275,8 +277,8 @@ const menuTemplate = (app, mainWindow, ns) => {
                     return
                 } else logger.debug('\n\n\t=== col1 ', typeof col1, Array.isArray(col1))
 
-                if (typeof col1 === 'undefined') {
-                    logger.debug('col1 undefined')
+                if (typeof col2 === 'undefined') {
+                    logger.debug('col2 undefined')
                 } else logger.debug('\n\n\t===  col2 ', typeof col2, Array.isArray(col2))
 
                 // logger.debug('\n\n\t=== lines1 ', typeof lines1, Array.isArray(lines1))
@@ -317,7 +319,6 @@ const menuTemplate = (app, mainWindow, ns) => {
                     // progressBar.setCompleted()
                 }
 
-                // let rowData  // moved to top as global
                 let pairsList
                 try {
                     logger.debug('\n\t ns.store: ', ns.store)
@@ -328,7 +329,7 @@ const menuTemplate = (app, mainWindow, ns) => {
                     pairsList = await trText(col1.join('\n'), null, ns.get('targetLang1'))
 
                     // logger.debug('trtext: %s', trtext)
-                    logger.debug('pairsList.slice(0, 5): %j', pairsList.slice(0, 5))
+                    logger.debug('\n\t pairsList.slice(0, 5): %j', pairsList.slice(0, 5))
                 } catch (e) {
                     logger.error(e)
                     rowData = { text1: e.name, text2: e.message }
@@ -356,7 +357,8 @@ const menuTemplate = (app, mainWindow, ns) => {
                 // logger.debug('col2: %j', col2.slice(0,5))
                 // rowData = genRowdata({ col1, col2 })
 
-                rowData = genRowdata({ col1: pairsList, isRow: true })
+                const rowData = genRowdata({ col1: pairsList, isRow: true })
+                ns.set('rowData', rowData)
                 // logger.debug(' rowData from col1 col2: %j', rowData)
                 logger.debug(' rowData from pairsList: %j', pairsList)
 
@@ -386,7 +388,9 @@ const menuTemplate = (app, mainWindow, ns) => {
                 logger.debug(' ns.get(rowData) ', ns.get('rowData'))
                 logger.debug('SaveCsv clicked...')
 
+                let rowData = ns.get('rowData')
                 if (typeof rowData === 'undefined' || !rowData) { // undefined or empty
+                    console.log('typeof rowData === \'undefined\' || !rowData')
                     dialog.showMessageBox(
                         {
                             message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
@@ -399,6 +403,8 @@ const menuTemplate = (app, mainWindow, ns) => {
                 }
                 // proceed to save rowData
                 // let savedFilename = `${path.parse(filename1).name}-${path.parse(filename2).name}.csv`
+
+                let filename1 = ns.get('filename1')
                 savedFilename = `${path.parse(filename1).name}-tr.csv`
 
                 savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
@@ -410,7 +416,6 @@ const menuTemplate = (app, mainWindow, ns) => {
                     // onSaveDocx()
                     onSaveDocx(ns)
                 } catch (e) {
-                    logger.debug(`${e.name}: ${e.message}`)
                     logger.debug(e)
                     dialog.showMessageBox(
                         {
@@ -430,10 +435,13 @@ const menuTemplate = (app, mainWindow, ns) => {
             click: async () => {
                 logger.debug('SaveCsv clicked...')
 
-                if (typeof toLang === 'undefined') {
+                let rowData = ns.get('rowData')
+                logger.debug(' ns.store: ', ns.store)
+
+                if (typeof rowData === 'undefined') {
                     dialog.showMessageBox(
                         {
-                            message: 'Empty data...Try to load a file or paste some text to a cell in text1 first.',
+                            message: 'rowData === \'undefined\'.',
                             title: 'Warning',
                             buttons: ['OK'],
                             type: 'warning'
@@ -442,7 +450,6 @@ const menuTemplate = (app, mainWindow, ns) => {
                     return null
                 }
 
-                let rowData = ns.get('rowData')
                 if (!rowData) { // undefined or empty
                     logger.debug(' if (!rowData) ')
                     dialog.showMessageBox(
@@ -456,7 +463,7 @@ const menuTemplate = (app, mainWindow, ns) => {
                     return null
                 }
                 // proceed to save rowData
-                let filename1 = ns.get('filename1')
+                const filename1 = ns.get('filename1')
                 let savedFilename = `${path.parse(filename1).name}-tr.csv`
 
                 savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
@@ -515,12 +522,15 @@ const menuTemplate = (app, mainWindow, ns) => {
       {
         label: 'Save(trtxt)',
         click: async () => {
-          logger.debug('SaveTrxt clicked...')
+          logger.debug('SaveTrtxt clicked...')
+
+          let rowData = ns.get('rowData')
 
           if (typeof rowData === 'undefined') {
+              logger.debug('rowData === \'undefined\'.')
               dialog.showMessageBox(
                   {
-                      message: 'Empty data...Try to load a file or paste some text to a cell in text1 first.',
+                      message: ' rowData === \'undefined\'.',
                       title: 'Warning',
                       buttons: ['OK'],
                       type: 'warning'
@@ -530,6 +540,7 @@ const menuTemplate = (app, mainWindow, ns) => {
           }
 
           if (!rowData) { // undefined or empty
+            console.log('Empty data...')
             dialog.showMessageBox(
               {
                 message: 'Empty data...Try to load a file or paste some text to a cell in text1  first.',
@@ -540,17 +551,20 @@ const menuTemplate = (app, mainWindow, ns) => {
             )
             return null
           }
+          const filename1 = ns.get('filename1')
           savedFilename = `${path.parse(filename1).name}-tr.txt`
 
           savedFilename = path.join(path.parse(path.resolve(filename1)).dir, savedFilename)
 
           logger.debug('SaveTrtxt savedFilename: ', savedFilename)
 
+          logger.debug(' rowData ', rowData)
+
           // convert text2 of rowData to trtxt
           let trtxt
           try {
-            trtxt = rowData.map( _ => _.text2 ).join('\n') }
-          catch (e) {
+            trtxt = rowData.map( _ => _.text2 ).join('\n') 
+          } catch (e) {
             trtxt = `${e.name}: ${e.message}`
             logger.error(e)
             dialog.showMessageBox(

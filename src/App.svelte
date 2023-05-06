@@ -97,10 +97,10 @@ onMount(() => {
   new Grid(gridContainer, gridOptions);
 })
 
-// api.rowData('rowData', (rowData) => {
-//   // console.log(' channel rowData received: ', JSON.stringify(rowData))
-//   gridOptions.api.setRowData(rowData)
-// })
+api.rowData('rowData', (rowData) => {
+  // console.log(' channel rowData received: ', JSON.stringify(rowData))
+  gridOptions.api.setRowData(rowData)
+})
 
 </script>
 

@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   rowData: (channel, func) => {
     // ipcRenderer.on('rowData', (event, ...args) => func(...args))
+    console.log('api.rowData')
     ipcRenderer.on(channel, (event, ...args) => func(...args))
   },
   updateRowdata: (channel, data) => {
