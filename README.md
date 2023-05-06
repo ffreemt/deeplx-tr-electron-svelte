@@ -32,4 +32,4 @@ Download from [https://github.com/ffreemt/deeplx-tr-electron/releases](https://g
 * `pip install rowdata2file`
 * `npm run electron:dev`
 
-Note: for those who prefer `yarn`, `yarn` does not seem quite work.
+Note: for those who prefer `yarn`, `yarn` does not seem to quite work.
