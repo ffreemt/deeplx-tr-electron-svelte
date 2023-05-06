@@ -1,0 +1,3 @@
+[console_scripts]
+rowdata2file=rowdata2file.__main__:app
+

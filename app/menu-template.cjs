@@ -85,17 +85,23 @@ const onSaveDocx = (ns) => {
     let pyscript
     if (app.isPackaged) {
     //   pyscript = path.join(process.resourcesPath, 'app', 'pyscript.py')
-      pyscript = path.join(process.resourcesPath,'pyscript.py')
+      pyscript = path.join(process.resourcesPath, 'pyenv', 'pyscript.py')
     } else {
     //   pyscript = path.join(__dirname, 'app', 'pyscript.py')
-      pyscript = path.join(__dirname, 'pyscript.py')
+      pyscript = path.join(__dirname, 'pyenv', 'pyscript.py')
     }
     logger.debug('onSaveDocx pyscript.py: %s', pyscript)
 
     // const pythonPath = path.join(process.resourcesPath, 'app', 'install', 'python.exe')
-    const pythonPath = 'python.exe'
+    // const pythonPath = 'python.exe'
+    let pythonPath
+    if (app.isPackaged) {
+      pythonPath = path.join(process.resourcesPath, 'pyenv', 'python.exe')
+    } else {
+      pythonPath = path.join(__dirname, 'pyenv', 'python.exe')
+    }
 
-    logger.debug('onSaveDocx pythonPath: %s', pythonPath)
+    logger.debug('\n\t onSaveDocx pythonPath: %s', pythonPath)
 
     // const pyshell = new PythonShell(pyscript, { mode: 'json', pythonPath })
     const pyshell = new PythonShell(pyscript, { mode: 'binary', pythonPath })
@@ -383,7 +389,6 @@ const menuTemplate = (app, mainWindow, ns) => {
                         }
                       )
                     }
-
                 }
             }
         },
