@@ -29,7 +29,7 @@ Download from [https://github.com/ffreemt/deeplx-tr-electron/releases](https://g
 
 * Clone the repo `git clone https://github.com/ffreemt/deeplx-tr-electron-svelte && cd deeplx-tr-electron-svelte`
 * Run `npm install`
-* `pip install rowdata2file`  # (needed for saving docx format)
+* [python runtime in pyenv (`pip install rowdata2file`) already in place.]
 * `npm run electron:dev`
 
 Note: for those who prefer `yarn`, `yarn` does not seem to quite work.
