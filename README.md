@@ -27,6 +27,8 @@ Download from [https://github.com/ffreemt/deeplx-tr-electron/releases](https://g
 
 ## For Developers
 
-* Clone the repo
-* Run `npm install` or `yarn` to install packages
-* `npx electron .`
+* Clone the repo `git clone https://github.com/ffreemt/deeplx-tr-electron-svelte && cd deeplx-tr-electron-svelte`
+* Run `npm install`
+* `npm run electron:dev`
+
+Note: for those who prefer `yarn`, `yarn` does not seem quite work.

@@ -365,16 +365,25 @@ const menuTemplate = (app, mainWindow, ns) => {
                 if (!rowData) {
                     logger.error(' rowData is undefined ')
                 } else {
-                    logger.debug(' send to via rowData channel ')
-                    // rowData.map((el, idx) => {
-                    rowData.forEach((el, idx) => {
-                        if (idx < 5) {
-                            logger.debug(' send via rowData channel ')
-                        }
-                    })
-
+                    _ = Object.fromEntries(Object.entries(rowData).slice(0, 3))
+                    logger.debug(' send to via rowData channel ', _, '...')
                     mainWindow.webContents.send('rowData', rowData)
-                    //
+                    // update store/ns.rowData
+                    try {
+                      ns.set('rowData', rowData)
+                      logger.debug(' store/ns rowData updated')
+                    } catch (e) {
+                      logger.error(e)
+                      dialog(
+                        {
+                          message: `${e.name}: ${e.message}`,
+                          title: 'Warning',
+                          buttons: ['OK'],
+                          type: 'warning',
+                        }
+                      )
+                    }
+
                 }
             }
         },
@@ -563,7 +572,7 @@ const menuTemplate = (app, mainWindow, ns) => {
           // convert text2 of rowData to trtxt
           let trtxt
           try {
-            trtxt = rowData.map( _ => _.text2 ).join('\n') 
+            trtxt = rowData.map( _ => _.text2 ).join('\n')
           } catch (e) {
             trtxt = `${e.name}: ${e.message}`
             logger.error(e)

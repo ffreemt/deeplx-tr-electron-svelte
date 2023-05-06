@@ -78,6 +78,7 @@ store.set('rowdata2file', store.get('rowdata2file') || defaultPref.rowdata2file)
 store.set('targetLang1', store.get('targetLang1') || defaultPref.targetLang1)
 
 // store.delete('rowData')
+store.delete('filename')
 store.set('rowData', [{text1: '', text2: ''}])
 store.set('filename1', defaultPref.filename1) // reset filename1
 
